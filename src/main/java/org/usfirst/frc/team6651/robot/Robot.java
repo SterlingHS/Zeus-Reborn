@@ -15,6 +15,8 @@ import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.drive.MecanumDrive;
+import edu.wpi.first.wpilibj.Relay;
+import edu.wpi.first.wpilibj.Encoder;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -24,50 +26,84 @@ import edu.wpi.first.wpilibj.drive.MecanumDrive;
  * project.
  */
 public class Robot extends IterativeRobot {
-	
-	public static MecanumDrive DTMec;
-	
-	ADXRS450_Gyro gyro = new ADXRS450_Gyro();
+	// Encoders Init
+	Encoder enc1, enc2, enc3, enc4;
 
-	double angle;
-	double kp=0.004;
-	double tick_per_degree=0.000144114;
+	// Port init for Relays - RGB LEDs
+	Relay LEDRed, LEDGreen, LEDBlue;
+	int RedPort = 0;
+	int GreenPort = 2;
+	int BluePort = 3;
 	
-	Joystick PS4 = new Joystick(0);
-	int butterflyButtonId = 1;
-	
-	double MAXPOWER=0.75;
+	// Mecanum Drive Init and motor controllers
+	public static MecanumDrive DTMec;
 	WPI_TalonSRX talon10;
 	WPI_TalonSRX talon11;
 	WPI_TalonSRX talon12;
 	WPI_TalonSRX talon13;
 	
+	// Gyro Init
+	ADXRS450_Gyro gyro = new ADXRS450_Gyro();
+	double angle;
+	double kp=0.004;
+	double tick_per_degree=0.000144114;
+	
+	// Joystick Init
+	Joystick PS4 = new Joystick(0);
+	int butterflyButtonId = 1;
+	
+	// MaxPower - Use less than 1 to slow down the robot
+	double MAXPOWER=1;
+	
+	// Pneumatic Init
 	Compressor c;
 	DoubleSolenoid butterflySolenoid;
 	boolean changeOfState = true;
 	DoubleSolenoid.Value UP=DoubleSolenoid.Value.kForward, DOWN=DoubleSolenoid.Value.kReverse;
 	DoubleSolenoid.Value butterflyState = DOWN;
-	
+
 	@Override
 	public void robotInit() {
+
+		// Right side Controllers
 		talon10 = new WPI_TalonSRX(10);
 		talon12 = new WPI_TalonSRX(12);
 
+		// Left side Controllers
 		talon11 = new WPI_TalonSRX(11);
 		talon13 = new WPI_TalonSRX(13);
 
+		// DriveTrain Init
 		DTMec = new MecanumDrive(talon10, talon11, talon12, talon13);
 		
+		// Pneumatic Init
 		c = new Compressor(0);
 		c.setClosedLoopControl(true);  // Start compressor control
-		
 		butterflySolenoid = new DoubleSolenoid(0, 1);
 		butterflySolenoid.set(butterflyState);
 
-		// Calibrate once in a while
-		// gyro.calibrate();
-		gyro.reset();
+		// LED Strip Init
+		LEDRed = new Relay(RedPort);
+		LEDRed.set(Relay.Value.kForward);
+		LEDRed.set(Relay.Value.kOn);
 
+		LEDGreen = new Relay(GreenPort);
+		LEDGreen.set(Relay.Value.kForward);
+		LEDGreen.set(Relay.Value.kOff);
+
+		LEDBlue = new Relay(BluePort);
+		LEDBlue.set(Relay.Value.kForward);
+		LEDBlue.set(Relay.Value.kOff);
+
+		// GYRO Init
+		gyro.reset();
+		// gyro.calibrate(); // Calibrate once in a while
+
+		// Encoders Init
+		enc1 = new Encoder(0, 1, false, Encoder.EncodingType.k4X);
+		enc2 = new Encoder(2, 3, false, Encoder.EncodingType.k4X);
+		enc3 = new Encoder(4, 5, false, Encoder.EncodingType.k4X);
+		enc4 = new Encoder(6, 7, false, Encoder.EncodingType.k4X);
 	}
 
 	/**
@@ -83,7 +119,17 @@ public class Robot extends IterativeRobot {
 	 */
 	@Override
 	public void autonomousInit() {
-		
+		LEDRed = new Relay(RedPort);
+		LEDRed.set(Relay.Value.kForward);
+		LEDRed.set(Relay.Value.kOn);
+
+		LEDGreen = new Relay(GreenPort);
+		LEDGreen.set(Relay.Value.kForward);
+		LEDGreen.set(Relay.Value.kOn);
+
+		LEDBlue = new Relay(BluePort);
+		LEDBlue.set(Relay.Value.kForward);
+		LEDBlue.set(Relay.Value.kOn);
 	}
 
 	/**
@@ -92,6 +138,8 @@ public class Robot extends IterativeRobot {
 	@Override
 	public void autonomousPeriodic() {
 
+		
+
 	}
 
 	/**
@@ -99,21 +147,28 @@ public class Robot extends IterativeRobot {
 	 */
 	@Override
 	public void teleopPeriodic() {
+
+		// Joystick axis - definition
 		int X_axis = 1, Y_axis = 0, Z_axis = 2;
-		double power=0.8*MAXPOWER;
+		double power=0.5*MAXPOWER; // Power is used for POV speed
 		double forward = PS4.getRawAxis(X_axis)*MAXPOWER; 
 		double slide = PS4.getRawAxis(Y_axis)*MAXPOWER; 
 		double turn = PS4.getRawAxis(Z_axis)*MAXPOWER;
 		int POV = PS4.getPOV();
+		
+		// Input from Gyro
 		angle = gyro.getAngle();
 		// System.out.println("Angle at: " + angle + "    The angle: " + (int)(angle/tick_per_degree));
 		
+		// Test to check mode (Butterfly is DOWN, Tank Mode is UP)
 		if (butterflyState == DOWN)
 		{
 			turn = slide;
 			slide = 0;
 		}
-		else {
+		else // Tank mode
+		{
+			// Cases for POV
 			if (POV != -1) System.out.println("POV " + POV);
 			switch(POV)
 				{
@@ -163,16 +218,29 @@ public class Robot extends IterativeRobot {
 		}
 		DTMec.driveCartesian(forward, -slide, -turn);
 		
+		// Change mode between Butterfly and Tank
 		if (PS4.getRawButton(butterflyButtonId) == true && changeOfState == true) 
 		{
-			if (butterflyState == DOWN) butterflyState = UP;
-			else 						butterflyState = DOWN;
+			if (butterflyState == DOWN) 
+			{
+				butterflyState = UP;
+				LEDRed.set(Relay.Value.kOff);
+				LEDGreen.set(Relay.Value.kOn);
+			}
+			else 						
+			{
+				butterflyState = DOWN;
+				LEDRed.set(Relay.Value.kOn);
+				LEDGreen.set(Relay.Value.kOff);
+			}
 			changeOfState = false;
 			butterflySolenoid.set(butterflyState);
 		}
 		
-		//  Reset state for driving mode
-		if (PS4.getRawButton(butterflyButtonId) == false && changeOfState == false)  changeOfState = true;
+		// Reset state for driving mode
+		// It will change states only when button has been released and pushed again
+		if (PS4.getRawButton(butterflyButtonId) == false && changeOfState == false)  
+			changeOfState = true;
 
 
 	}
