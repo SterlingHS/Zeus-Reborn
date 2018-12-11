@@ -120,16 +120,8 @@ public class Robot extends IterativeRobot {
 	@Override
 	public void autonomousInit() {
 		// LED Init
-		// LEDRed = new Relay(RedPort);
-		// LEDRed.set(Relay.Value.kForward);
 		LEDRed.set(Relay.Value.kOn);
-
-		// LEDGreen = new Relay(GreenPort);
-		// LEDGreen.set(Relay.Value.kForward);
 		LEDGreen.set(Relay.Value.kOn);
-
-		// LEDBlue = new Relay(BluePort);
-		// LEDBlue.set(Relay.Value.kForward);
 		LEDBlue.set(Relay.Value.kOn);
 
 		// Encoders Init
