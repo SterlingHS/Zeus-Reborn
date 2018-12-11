@@ -119,17 +119,24 @@ public class Robot extends IterativeRobot {
 	 */
 	@Override
 	public void autonomousInit() {
-		LEDRed = new Relay(RedPort);
-		LEDRed.set(Relay.Value.kForward);
+		// LED Init
+		// LEDRed = new Relay(RedPort);
+		// LEDRed.set(Relay.Value.kForward);
 		LEDRed.set(Relay.Value.kOn);
 
-		LEDGreen = new Relay(GreenPort);
-		LEDGreen.set(Relay.Value.kForward);
+		// LEDGreen = new Relay(GreenPort);
+		// LEDGreen.set(Relay.Value.kForward);
 		LEDGreen.set(Relay.Value.kOn);
 
-		LEDBlue = new Relay(BluePort);
-		LEDBlue.set(Relay.Value.kForward);
+		// LEDBlue = new Relay(BluePort);
+		// LEDBlue.set(Relay.Value.kForward);
 		LEDBlue.set(Relay.Value.kOn);
+
+		// Encoders Init
+		enc1.reset();
+		enc2.reset();
+		enc3.reset();
+		enc4.reset();
 	}
 
 	/**
@@ -137,9 +144,15 @@ public class Robot extends IterativeRobot {
 	 */
 	@Override
 	public void autonomousPeriodic() {
+		int average_enc = (enc1.get()+enc2.get()+enc3.get()+enc4.get())/4;
 
+		if (average_enc < 500)
+		{
+			DTMec.driveCartesian(0.3, -0, -0);
+		}
+		else DTMec.driveCartesian(0, -0, -0);
 		
-
+		System.out.println("average_enc:  " + average_enc);
 	}
 
 	/**
