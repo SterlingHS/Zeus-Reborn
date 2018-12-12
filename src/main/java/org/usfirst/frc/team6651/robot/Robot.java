@@ -17,6 +17,9 @@ import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.drive.MecanumDrive;
 import edu.wpi.first.wpilibj.Relay;
 import edu.wpi.first.wpilibj.Encoder;
+import edu.wpi.first.wpilibj.AnalogInput;
+
+import java.lang.Math;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -26,6 +29,9 @@ import edu.wpi.first.wpilibj.Encoder;
  * project.
  */
 public class Robot extends IterativeRobot {
+	// UltraSound Init
+	AnalogInput ai;
+
 	// Encoders Init
 	Encoder enc1, enc2, enc3, enc4;
 
@@ -64,6 +70,8 @@ public class Robot extends IterativeRobot {
 
 	@Override
 	public void robotInit() {
+		// UltraSount Init in port 2
+		ai = new AnalogInput(2);
 
 		// Right side Controllers
 		talon10 = new WPI_TalonSRX(10);
@@ -120,8 +128,8 @@ public class Robot extends IterativeRobot {
 	@Override
 	public void autonomousInit() {
 		// LED Init
-		LEDRed.set(Relay.Value.kOn);
-		LEDGreen.set(Relay.Value.kOn);
+		LEDRed.set(Relay.Value.kOff);
+		LEDGreen.set(Relay.Value.kOff);
 		LEDBlue.set(Relay.Value.kOn);
 
 		// Encoders Init
@@ -129,6 +137,9 @@ public class Robot extends IterativeRobot {
 		enc2.reset();
 		enc3.reset();
 		enc4.reset();
+
+		// GYRO Init
+		gyro.reset();
 	}
 
 	/**
@@ -137,14 +148,26 @@ public class Robot extends IterativeRobot {
 	@Override
 	public void autonomousPeriodic() {
 		int average_enc = (enc1.get()+enc2.get()+enc3.get()+enc4.get())/4;
-
+		angle = gyro.getAngle();
 		if (average_enc < 500)
 		{
-			DTMec.driveCartesian(0.3, -0, -0);
+			DTMec.driveCartesian(0.3, -0, -0, angle);
 		}
-		else DTMec.driveCartesian(0, -0, -0);
+		else DTMec.driveCartesian(0, -0, -0, angle);
 		
-		System.out.println("average_enc:  " + average_enc);
+		// System.out.println("average_enc:  " + average_enc);
+	
+
+		// TEST FOR UltraSound sensor
+		// Print on DashBoard!!
+		int raw = ai.getValue();
+		double kdistance = 5*1024*2.54;
+		double volts = ai.getVoltage();
+		int averageRaw = ai.getAverageValue();
+		double averageVolts = ai.getAverageVoltage(); 
+
+		System.out.println("\n averageVolts:  " + Math.round(averageVolts*1000)/1000 + "   Volts:  " + Math.round(volts*1000)/1000);
+
 	}
 
 	/**
@@ -231,12 +254,14 @@ public class Robot extends IterativeRobot {
 				butterflyState = UP;
 				LEDRed.set(Relay.Value.kOff);
 				LEDGreen.set(Relay.Value.kOn);
+				LEDBlue.set(Relay.Value.kOff);
 			}
 			else 						
 			{
 				butterflyState = DOWN;
 				LEDRed.set(Relay.Value.kOn);
 				LEDGreen.set(Relay.Value.kOff);
+				LEDBlue.set(Relay.Value.kOff);
 			}
 			changeOfState = false;
 			butterflySolenoid.set(butterflyState);
