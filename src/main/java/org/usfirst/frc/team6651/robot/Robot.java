@@ -52,7 +52,7 @@ public class Robot extends IterativeRobot {
 	
 	// Gyro Init
 	ADXRS450_Gyro gyro = new ADXRS450_Gyro();
-	double angle;
+	double angle, field_orientation;
 	int resetGyroId = 2;
 	
 	// Joystick Init
@@ -110,7 +110,10 @@ public class Robot extends IterativeRobot {
 		LEDBlue.set(Relay.Value.kOff);
 
 		// GYRO Init
+		// gyro.calibrate();
 		gyro.reset();
+		field_orientation = 0;
+
 		// gyro.calibrate(); // Calibrate once in a while
 
 		// Encoders Init
@@ -118,12 +121,7 @@ public class Robot extends IterativeRobot {
 		enc2 = new Encoder(2, 3, false, Encoder.EncodingType.k4X);
 		enc3 = new Encoder(4, 5, false, Encoder.EncodingType.k4X);
 		enc4 = new Encoder(6, 7, false, Encoder.EncodingType.k4X);
-
-		// Encoders Init
-		enc1.reset();
-		enc2.reset();
-		enc3.reset();
-		enc4.reset();
+		encoder_reset();
 	}
 
 	/**
@@ -161,17 +159,8 @@ public class Robot extends IterativeRobot {
 	 */
 	@Override
 	public void autonomousPeriodic() {
-		switch (stage) {
-			case 1: // First Stage: Go to the wall
-				AM_forward_distance(4*18);
-				break;
-			case 2: // 2nd Stage: Go sideways
-				AM_sideways_distance(RIGHT, 18*2);
-				break;
-			default: // STOP
-				DTMec.driveCartesian(0, 0, 0);
-				break;
-		}
+		AM_rangecalibrate();
+		
 	}
 
 	/**
@@ -182,17 +171,16 @@ public class Robot extends IterativeRobot {
 
 		// Joystick axis - definition
 		int X_axis = 1, Y_axis = 0, Z_axis = 2;
-		double power=1*MAXPOWER; // Power is used for POV speed
 		double forward = PS4.getRawAxis(X_axis)*MAXPOWER; 
 		double slide = PS4.getRawAxis(Y_axis)*MAXPOWER; 
 		double turn = PS4.getRawAxis(Z_axis)*MAXPOWER;
-		int POV = PS4.getPOV();
 		
 		// Reset Gyro
 		if (PS4.getRawButton(resetGyroId) == true) 
 		{
 			gyro.reset();
 			encoder_reset();
+			field_orientation = 0;
 		}
 
 		// Input from Gyro
@@ -201,61 +189,12 @@ public class Robot extends IterativeRobot {
 		// Test to check mode (Butterfly is DOWN, Tank Mode is UP)
 		if (butterflyState == DOWN) // Tank mode
 		{
-			turn = slide;
-			slide = 0;
+			drive_tank(forward, slide); // slide turns the robot in tank drive
 		}
-		else // Meccanum mode
+		else
 		{
-			// Cases for POV
-			if (POV != -1) System.out.println("POV " + POV);
-			switch(POV)
-				{
-					case 0:
-						forward = -power; 
-						turn = 0;
-						slide = 0;
-						break;
-					case 45:
-						forward = -power; 
-						turn = 0;
-						slide = power;
-						break;
-					case 90:
-						forward = 0; 
-						turn = 0;
-						slide = power;
-						break;
-					case 135:
-						forward = power; 
-						turn = 0;
-						slide = power;
-						break;
-					case 180:
-						forward = power; 
-						turn = 0;
-						slide = 0;
-						break;
-					case 225:
-						forward = power; 
-						turn = 0;
-						slide = -power;
-						break;
-					case 270:
-						forward = 0; 
-						turn = 0;
-						slide = -power;
-						break;
-					case 315:
-						forward = -power; 
-						turn = 0;
-						slide = -power;
-						break;
-					case -1:
-						break;
-				}
+			drive_meccanum(forward, slide, turn, angle);
 		}
-		DTMec.driveCartesian(forward, slide, -turn);
-		
 		// Change mode between Butterfly and Tank
 		if (PS4.getRawButton(butterflyButtonId) == true && changeOfState == true) 
 		{
@@ -286,6 +225,14 @@ public class Robot extends IterativeRobot {
 		updateDashboard();
 	}
 
+	public void drive_tank(double forward, double turn){
+		DTMec.driveCartesian(forward, 0, -turn);
+	}
+
+	public void drive_meccanum(double forward, double slide, double turn, double angle){
+		DTMec.driveCartesian(forward, slide, -turn, angle);
+	}
+
 	/**
 	 * This function is called periodically during test mode.
 	 */
@@ -293,17 +240,6 @@ public class Robot extends IterativeRobot {
 	public void testPeriodic() {
 	}
 
-	public void autonomous_1() {
-		int average_enc = (-enc1.get()-enc2.get()-enc3.get()-enc4.get())/4;
-		angle = gyro.getAngle();
-		if (average_enc < 500)
-		{
-			DTMec.driveCartesian(0.3, 0, -0, angle);
-		}
-		else DTMec.driveCartesian(0, 0, -0, angle);
-		
-		
-	}
 	
 //  AUTONOMOUS FUNCTIONS
 
