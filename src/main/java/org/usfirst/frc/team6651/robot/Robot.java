@@ -18,8 +18,7 @@ import edu.wpi.first.wpilibj.drive.MecanumDrive;
 import edu.wpi.first.wpilibj.Relay;
 import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.AnalogInput;
-
-import java.lang.Math;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -29,6 +28,9 @@ import java.lang.Math;
  * project.
  */
 public class Robot extends IterativeRobot {
+	// SmartDashBoard Init
+	SmartDashboard SmartDashBoard;
+
 	// UltraSound Init
 	AnalogInput ai;
 
@@ -51,15 +53,14 @@ public class Robot extends IterativeRobot {
 	// Gyro Init
 	ADXRS450_Gyro gyro = new ADXRS450_Gyro();
 	double angle;
-	double kp=0.004;
-	double tick_per_degree=0.000144114;
+	int resetGyroId = 2;
 	
 	// Joystick Init
 	Joystick PS4 = new Joystick(0);
 	int butterflyButtonId = 1;
 	
 	// MaxPower - Use less than 1 to slow down the robot
-	double MAXPOWER=1;
+	double MAXPOWER=0.5;
 	
 	// Pneumatic Init
 	Compressor c;
@@ -112,6 +113,12 @@ public class Robot extends IterativeRobot {
 		enc2 = new Encoder(2, 3, false, Encoder.EncodingType.k4X);
 		enc3 = new Encoder(4, 5, false, Encoder.EncodingType.k4X);
 		enc4 = new Encoder(6, 7, false, Encoder.EncodingType.k4X);
+
+		// Encoders Init
+		enc1.reset();
+		enc2.reset();
+		enc3.reset();
+		enc4.reset();
 	}
 
 	/**
@@ -147,27 +154,7 @@ public class Robot extends IterativeRobot {
 	 */
 	@Override
 	public void autonomousPeriodic() {
-		int average_enc = (enc1.get()+enc2.get()+enc3.get()+enc4.get())/4;
-		angle = gyro.getAngle();
-		if (average_enc < 500)
-		{
-			DTMec.driveCartesian(0.3, -0, -0, angle);
-		}
-		else DTMec.driveCartesian(0, -0, -0, angle);
-		
-		// System.out.println("average_enc:  " + average_enc);
-	
-
-		// TEST FOR UltraSound sensor
-		// Print on DashBoard!!
-		int raw = ai.getValue();
-		double kdistance = 5*1024*2.54;
-		double volts = ai.getVoltage();
-		int averageRaw = ai.getAverageValue();
-		double averageVolts = ai.getAverageVoltage(); 
-
-		System.out.println("\n averageVolts:  " + Math.round(averageVolts*1000)/1000 + "   Volts:  " + Math.round(volts*1000)/1000);
-
+		autonomous_rangecalibrate();
 	}
 
 	/**
@@ -178,16 +165,25 @@ public class Robot extends IterativeRobot {
 
 		// Joystick axis - definition
 		int X_axis = 1, Y_axis = 0, Z_axis = 2;
-		double power=0.5*MAXPOWER; // Power is used for POV speed
+		double power=1*MAXPOWER; // Power is used for POV speed
 		double forward = PS4.getRawAxis(X_axis)*MAXPOWER; 
 		double slide = PS4.getRawAxis(Y_axis)*MAXPOWER; 
 		double turn = PS4.getRawAxis(Z_axis)*MAXPOWER;
 		int POV = PS4.getPOV();
 		
+		// Reset Gyro
+		if (PS4.getRawButton(resetGyroId) == true) 
+		{
+			gyro.reset();
+			enc1.reset();
+			enc2.reset();
+			enc3.reset();
+			enc4.reset();
+		}
+
 		// Input from Gyro
 		angle = gyro.getAngle();
-		// System.out.println("Angle at: " + angle + "    The angle: " + (int)(angle/tick_per_degree));
-		
+
 		// Test to check mode (Butterfly is DOWN, Tank Mode is UP)
 		if (butterflyState == DOWN)
 		{
@@ -244,7 +240,7 @@ public class Robot extends IterativeRobot {
 						break;
 				}
 		}
-		DTMec.driveCartesian(forward, -slide, -turn);
+		DTMec.driveCartesian(forward, slide, -turn);
 		
 		// Change mode between Butterfly and Tank
 		if (PS4.getRawButton(butterflyButtonId) == true && changeOfState == true) 
@@ -272,7 +268,8 @@ public class Robot extends IterativeRobot {
 		if (PS4.getRawButton(butterflyButtonId) == false && changeOfState == false)  
 			changeOfState = true;
 
-
+		// Update SmartDashBoard
+		updateDashboard();
 	}
 
 	/**
@@ -281,4 +278,51 @@ public class Robot extends IterativeRobot {
 	@Override
 	public void testPeriodic() {
 	}
+
+	public void autonomous_1() {
+		int average_enc = (-enc1.get()-enc2.get()-enc3.get()-enc4.get())/4;
+		angle = gyro.getAngle();
+		if (average_enc < 500)
+		{
+			DTMec.driveCartesian(0.3, 0, -0, angle);
+		}
+		else DTMec.driveCartesian(0, 0, -0, angle);
+		
+		
+	}
+	
+	public void autonomous_rangecalibrate() {
+		DTMec.driveCartesian(0, 0, -0);
+		updateDashboard();
+	}
+
+	public void updateDashboard(){
+		double distance_travelled = get_encoder_distance();
+		double ultrasound = get_ultrasound_distance();
+		SmartDashboard.putNumber("Distance Travelled: ", distance_travelled);
+		SmartDashboard.putNumber("Ultrasound: ", ultrasound);
+		SmartDashboard.putNumber("Angle: ", gyro.getAngle());
+		SmartDashboard.putNumber("enc1: ", enc1.get());
+		SmartDashboard.putNumber("enc2: ", enc2.get());
+		SmartDashboard.putNumber("enc3: ", enc3.get());
+		SmartDashboard.putNumber("enc4: ", enc4.get());
+	}
+
+	public double get_encoder_distance(){
+		double encoder;
+
+		encoder = (-enc1.get()+enc3.get()-enc4.get())/3;
+
+		return encoder*7*18/1400;
+	}
+
+	public double get_ultrasound_distance(){
+		double ultrasound;
+
+		ultrasound = ai.getAverageVoltage()*24/0.286;
+
+		return ultrasound;
+	}
+
 }
+
