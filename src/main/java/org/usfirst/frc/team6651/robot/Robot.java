@@ -61,6 +61,7 @@ public class Robot extends IterativeRobot {
 	
 	// MaxPower - Use less than 1 to slow down the robot
 	double MAXPOWER=0.5;
+	double AM_MAXPOWER=0.5;
 	
 	// Pneumatic Init
 	Compressor c;
@@ -68,6 +69,10 @@ public class Robot extends IterativeRobot {
 	boolean changeOfState = true;
 	DoubleSolenoid.Value UP=DoubleSolenoid.Value.kForward, DOWN=DoubleSolenoid.Value.kReverse;
 	DoubleSolenoid.Value butterflyState = DOWN;
+
+	// AUTONOMOUS Mode variables
+	int stage;
+	int LEFT=1, RIGHT=-1;
 
 	@Override
 	public void robotInit() {
@@ -140,13 +145,15 @@ public class Robot extends IterativeRobot {
 		LEDBlue.set(Relay.Value.kOn);
 
 		// Encoders Init
-		enc1.reset();
-		enc2.reset();
-		enc3.reset();
-		enc4.reset();
+		encoder_reset();
 
 		// GYRO Init
 		gyro.reset();
+
+		// Butterfly UP
+		butterflySolenoid.set(UP);
+
+		stage = 1;
 	}
 
 	/**
@@ -154,7 +161,17 @@ public class Robot extends IterativeRobot {
 	 */
 	@Override
 	public void autonomousPeriodic() {
-		autonomous_rangecalibrate();
+		switch (stage) {
+			case 1: // First Stage: Go to the wall
+				AM_forward_distance(4*18);
+				break;
+			case 2: // 2nd Stage: Go sideways
+				AM_sideways_distance(RIGHT, 18*2);
+				break;
+			default: // STOP
+				DTMec.driveCartesian(0, 0, 0);
+				break;
+		}
 	}
 
 	/**
@@ -175,22 +192,19 @@ public class Robot extends IterativeRobot {
 		if (PS4.getRawButton(resetGyroId) == true) 
 		{
 			gyro.reset();
-			enc1.reset();
-			enc2.reset();
-			enc3.reset();
-			enc4.reset();
+			encoder_reset();
 		}
 
 		// Input from Gyro
 		angle = gyro.getAngle();
 
 		// Test to check mode (Butterfly is DOWN, Tank Mode is UP)
-		if (butterflyState == DOWN)
+		if (butterflyState == DOWN) // Tank mode
 		{
 			turn = slide;
 			slide = 0;
 		}
-		else // Tank mode
+		else // Meccanum mode
 		{
 			// Cases for POV
 			if (POV != -1) System.out.println("POV " + POV);
@@ -291,11 +305,73 @@ public class Robot extends IterativeRobot {
 		
 	}
 	
-	public void autonomous_rangecalibrate() {
+//  AUTONOMOUS FUNCTIONS
+
+	public void AM_forward_until_wall(double projectedDistance) // projectedDistance in inches
+	{
+		double power = 0;
+
+		if (get_encoder_distance()<projectedDistance)
+			power = -AM_MAXPOWER;
+		else
+		{
+			if (get_ultrasound_distance()>30)
+				power = -AM_MAXPOWER/2;
+			else 
+			{
+				power = 0 ;
+				stage = stage + 1;  // Finish with stage, go to the next stage...
+				encoder_reset();
+			}
+		}
+		DTMec.driveCartesian(power, 0, gyro.getAngle()/40);
+		updateDashboard();
+	}
+
+	public void AM_forward_distance(double projectedDistance) // projectedDistance in inches
+	{
+		double power = 0;
+
+		if (get_encoder_distance()<projectedDistance)
+			power = -AM_MAXPOWER;
+		else 
+			{
+				power = 0 ;
+				stage = stage + 1;  // Finish with stage, go to the next stage...
+				encoder_reset();
+			}
+		DTMec.driveCartesian(power, 0, gyro.getAngle()/40);
+		updateDashboard();
+	}
+
+	public void AM_sideways_distance(double direction, double projectedDistance) // projectedDistance in inches
+	{
+		double power = 0;
+
+		if (get_encoder_distance_sideways()<projectedDistance)
+			power = -AM_MAXPOWER;
+		else 
+		{
+			power = 0 ;
+			stage = stage + 1;  // Finish with stage, go to the next stage...
+			encoder_reset();
+		}
+
+		// LEFT: direction = 1
+		// RIGHT: direction = -1
+		DTMec.driveCartesian(0, power*direction, gyro.getAngle()/40);
+		updateDashboard();
+	}
+
+
+
+
+	public void AM_rangecalibrate() {
 		DTMec.driveCartesian(0, 0, -0);
 		updateDashboard();
 	}
 
+//  UPDATE OF SENSORS AND DASHBOARD 
 	public void updateDashboard(){
 		double distance_travelled = get_encoder_distance();
 		double ultrasound = get_ultrasound_distance();
@@ -306,14 +382,15 @@ public class Robot extends IterativeRobot {
 		SmartDashboard.putNumber("enc2: ", enc2.get());
 		SmartDashboard.putNumber("enc3: ", enc3.get());
 		SmartDashboard.putNumber("enc4: ", enc4.get());
+		SmartDashboard.putNumber("Stage: ", stage);
 	}
 
 	public double get_encoder_distance(){
 		double encoder;
 
-		encoder = (-enc1.get()+enc3.get()-enc4.get())/3;
-
-		return encoder*7*18/1400;
+		encoder = (-enc1.get()+enc3.get())/2;
+		if (encoder<0) encoder = -encoder;
+		return encoder*180/1570;
 	}
 
 	public double get_ultrasound_distance(){
@@ -322,6 +399,21 @@ public class Robot extends IterativeRobot {
 		ultrasound = ai.getAverageVoltage()*24/0.286;
 
 		return ultrasound;
+	}
+
+	public double get_encoder_distance_sideways(){
+		double encoder;
+
+		encoder = (-enc1.get()+enc3.get())/2;
+		if (encoder<0) encoder = -encoder;
+		return encoder*110/1570;
+	}
+
+	public void encoder_reset(){
+		enc1.reset();
+		enc2.reset();
+		enc3.reset();
+		enc4.reset();
 	}
 
 }
