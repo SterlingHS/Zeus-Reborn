@@ -1,21 +1,15 @@
-/*----------------------------------------------------------------------------*/
-/* Copyright (c) 2017-2018 FIRST. All Rights Reserved.                        */
-/* Open Source Software - may be modified and shared by FRC teams. The code   */
-/* must be accompanied by the FIRST BSD license file in the root directory of */
-/* the project.                                                               */
-/*----------------------------------------------------------------------------*/
-
 package org.usfirst.frc.team6651.robot;
 
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
-
-import edu.wpi.first.wpilibj.ADXRS450_Gyro;
+import com.kauailabs.navx.frc.AHRS;
 import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.drive.MecanumDrive;
 import edu.wpi.first.wpilibj.Relay;
+import edu.wpi.first.wpilibj.I2C;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.AnalogInput;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -49,18 +43,18 @@ public class Robot extends IterativeRobot {
 	WPI_TalonSRX talon11;
 	WPI_TalonSRX talon12;
 	WPI_TalonSRX talon13;
-	
-	// Gyro Init
-	ADXRS450_Gyro gyro = new ADXRS450_Gyro();
+
+	// NavX Init
+	AHRS NavX;
 	double angle;
-	int resetGyroId = 2;
+	int resetFieldOrientation = 2;
 	
 	// Joystick Init
 	Joystick PS4 = new Joystick(0);
 	int butterflyButtonId = 1;
 	
 	// MaxPower - Use less than 1 to slow down the robot
-	double MAXPOWER=0.5;
+	double MAXPOWER=1;
 	double AM_MAXPOWER=0.5;
 	
 	// Pneumatic Init
@@ -109,21 +103,23 @@ public class Robot extends IterativeRobot {
 		LEDBlue.set(Relay.Value.kForward);
 		LEDBlue.set(Relay.Value.kOff);
 
-		// GYRO Init
-		gyro.reset();
-		// gyro.calibrate(); // Calibrate once in a while
+		// NavX Init
+		try
+		{
+			NavX = new AHRS(I2C.Port.kMXP);
+			NavX.enableLogging(true);
+		}
+		catch (RuntimeException ex )
+		{
+			DriverStation.reportError("Error instantiating navX MXP:  " + ex.getMessage(), true);
+		}
 
 		// Encoders Init
 		enc1 = new Encoder(0, 1, false, Encoder.EncodingType.k4X);
 		enc2 = new Encoder(2, 3, false, Encoder.EncodingType.k4X);
 		enc3 = new Encoder(4, 5, false, Encoder.EncodingType.k4X);
 		enc4 = new Encoder(6, 7, false, Encoder.EncodingType.k4X);
-
-		// Encoders Init
-		enc1.reset();
-		enc2.reset();
-		enc3.reset();
-		enc4.reset();
+		encoder_reset();
 	}
 
 	/**
@@ -147,8 +143,8 @@ public class Robot extends IterativeRobot {
 		// Encoders Init
 		encoder_reset();
 
-		// GYRO Init
-		gyro.reset();
+		// NavX Reset
+		NavX.reset();
 
 		// Butterfly UP
 		butterflySolenoid.set(UP);
@@ -161,17 +157,7 @@ public class Robot extends IterativeRobot {
 	 */
 	@Override
 	public void autonomousPeriodic() {
-		switch (stage) {
-			case 1: // First Stage: Go to the wall
-				AM_forward_distance(4*18);
-				break;
-			case 2: // 2nd Stage: Go sideways
-				AM_sideways_distance(RIGHT, 18*2);
-				break;
-			default: // STOP
-				DTMec.driveCartesian(0, 0, 0);
-				break;
-		}
+		AM_rangecalibrate();
 	}
 
 	/**
@@ -182,80 +168,29 @@ public class Robot extends IterativeRobot {
 
 		// Joystick axis - definition
 		int X_axis = 1, Y_axis = 0, Z_axis = 2;
-		double power=1*MAXPOWER; // Power is used for POV speed
 		double forward = PS4.getRawAxis(X_axis)*MAXPOWER; 
 		double slide = PS4.getRawAxis(Y_axis)*MAXPOWER; 
-		double turn = PS4.getRawAxis(Z_axis)*MAXPOWER;
-		int POV = PS4.getPOV();
+		double turn = -PS4.getRawAxis(Z_axis)*MAXPOWER;
 		
 		// Reset Gyro
-		if (PS4.getRawButton(resetGyroId) == true) 
+		if (PS4.getRawButton(resetFieldOrientation) == true) 
 		{
-			gyro.reset();
+			NavX.reset();
 			encoder_reset();
 		}
 
 		// Input from Gyro
-		angle = gyro.getAngle();
+		angle = NavX.getYaw();
 
 		// Test to check mode (Butterfly is DOWN, Tank Mode is UP)
 		if (butterflyState == DOWN) // Tank mode
 		{
-			turn = slide;
-			slide = 0;
+			drive_tank(forward, slide); // slide turns the robot in tank drive
 		}
-		else // Meccanum mode
+		else
 		{
-			// Cases for POV
-			if (POV != -1) System.out.println("POV " + POV);
-			switch(POV)
-				{
-					case 0:
-						forward = -power; 
-						turn = 0;
-						slide = 0;
-						break;
-					case 45:
-						forward = -power; 
-						turn = 0;
-						slide = power;
-						break;
-					case 90:
-						forward = 0; 
-						turn = 0;
-						slide = power;
-						break;
-					case 135:
-						forward = power; 
-						turn = 0;
-						slide = power;
-						break;
-					case 180:
-						forward = power; 
-						turn = 0;
-						slide = 0;
-						break;
-					case 225:
-						forward = power; 
-						turn = 0;
-						slide = -power;
-						break;
-					case 270:
-						forward = 0; 
-						turn = 0;
-						slide = -power;
-						break;
-					case 315:
-						forward = -power; 
-						turn = 0;
-						slide = -power;
-						break;
-					case -1:
-						break;
-				}
+			drive_meccanum(forward, slide, turn, angle);
 		}
-		DTMec.driveCartesian(forward, slide, -turn);
-		
 		// Change mode between Butterfly and Tank
 		if (PS4.getRawButton(butterflyButtonId) == true && changeOfState == true) 
 		{
@@ -286,6 +221,16 @@ public class Robot extends IterativeRobot {
 		updateDashboard();
 	}
 
+
+
+	public void drive_tank(double forward, double turn){
+		DTMec.driveCartesian(forward, 0, turn);
+	}
+
+	public void drive_meccanum(double forward, double slide, double turn, double angle){	
+		DTMec.driveCartesian(forward, slide, turn, -angle);
+	}
+
 	/**
 	 * This function is called periodically during test mode.
 	 */
@@ -293,18 +238,6 @@ public class Robot extends IterativeRobot {
 	public void testPeriodic() {
 	}
 
-	public void autonomous_1() {
-		int average_enc = (-enc1.get()-enc2.get()-enc3.get()-enc4.get())/4;
-		angle = gyro.getAngle();
-		if (average_enc < 500)
-		{
-			DTMec.driveCartesian(0.3, 0, -0, angle);
-		}
-		else DTMec.driveCartesian(0, 0, -0, angle);
-		
-		
-	}
-	
 //  AUTONOMOUS FUNCTIONS
 
 	public void AM_forward_until_wall(double projectedDistance) // projectedDistance in inches
@@ -324,7 +257,8 @@ public class Robot extends IterativeRobot {
 				encoder_reset();
 			}
 		}
-		DTMec.driveCartesian(power, 0, gyro.getAngle()/40);
+		DTMec.driveCartesian(power, 0, get_angle()/40); // Correction with rotation
+		// DTMec.driveCartesian(power, 0, 0, get_angle()); // Correction with angle
 		updateDashboard();
 	}
 
@@ -340,7 +274,7 @@ public class Robot extends IterativeRobot {
 				stage = stage + 1;  // Finish with stage, go to the next stage...
 				encoder_reset();
 			}
-		DTMec.driveCartesian(power, 0, gyro.getAngle()/40);
+		DTMec.driveCartesian(power, 0, get_angle()/40);
 		updateDashboard();
 	}
 
@@ -359,7 +293,7 @@ public class Robot extends IterativeRobot {
 
 		// LEFT: direction = 1
 		// RIGHT: direction = -1
-		DTMec.driveCartesian(0, power*direction, gyro.getAngle()/40);
+		DTMec.driveCartesian(0, power*direction, get_angle()/40);
 		updateDashboard();
 	}
 
@@ -383,6 +317,23 @@ public class Robot extends IterativeRobot {
 		SmartDashboard.putNumber("enc3: ", enc3.get());
 		SmartDashboard.putNumber("enc4: ", enc4.get());
 		SmartDashboard.putNumber("Stage: ", stage);
+		SmartDashboard.putBoolean(  "IMU_Connected",        NavX.isConnected());
+        SmartDashboard.putBoolean(  "IMU_IsCalibrating",    NavX.isCalibrating());
+        SmartDashboard.putNumber(   "IMU_Yaw",              NavX.getYaw());
+		SmartDashboard.putNumber(   "IMU_Pitch",            NavX.getPitch());
+		SmartDashboard.putNumber(   "IMU_Roll",             NavX.getRoll());
+		SmartDashboard.putNumber(   "IMU_CompassHeading",   NavX.getCompassHeading());
+		SmartDashboard.putNumber(   "IMU_FusedHeading",     NavX.getFusedHeading());
+		SmartDashboard.putNumber(   "IMU_TotalYaw",         NavX.getAngle());
+		SmartDashboard.putNumber(   "IMU_YawRateDPS",       NavX.getRate());
+		SmartDashboard.putNumber(   "IMU_Accel_X",          NavX.getWorldLinearAccelX());
+        SmartDashboard.putNumber(   "IMU_Accel_Y",          NavX.getWorldLinearAccelY());
+		SmartDashboard.putBoolean(  "IMU_IsMoving",         NavX.isMoving());
+		SmartDashboard.putBoolean(  "IMU_IsRotating",       NavX.isRotating());
+		SmartDashboard.putNumber(   "Velocity_X",           NavX.getVelocityX());
+        SmartDashboard.putNumber(   "Velocity_Y",           NavX.getVelocityY());
+        SmartDashboard.putNumber(   "Displacement_X",       NavX.getDisplacementX());
+        SmartDashboard.putNumber(   "Displacement_Y",       NavX.getDisplacementY());
 	}
 
 	public double get_encoder_distance(){
@@ -416,5 +367,8 @@ public class Robot extends IterativeRobot {
 		enc4.reset();
 	}
 
-}
+	public double get_angle(){
+		return NavX.getYaw();
+	}
 
+}
