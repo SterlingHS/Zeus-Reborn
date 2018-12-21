@@ -77,6 +77,8 @@ public class Robot extends IterativeRobot {
 	double kF = 0.00;
 	double kToleranceInches = 0.5f;
 
+	double integral=0, previous_error=0, derivative;
+
 	@Override
 	public void robotInit() {
 		// PID Controller Init
@@ -169,7 +171,10 @@ public class Robot extends IterativeRobot {
 	 */
 	@Override
 	public void autonomousPeriodic() {
-		AM_rangecalibrate();
+		AM_sideways_distance(RIGHT, 18*5);
+		// AM_forward_until_wall(18*12);
+		// AM_forward_distance(18*5);
+		// AM_rangecalibrate();
 	}
 
 	/**
@@ -254,8 +259,15 @@ public class Robot extends IterativeRobot {
 
 	public void AM_forward_until_wall(double projectedDistance) // projectedDistance in inches
 	{
+		double error, distance;
 		double power = 0;
-
+		distance = get_encoder_distance();
+		error = projectedDistance - distance;
+		integral += error*0.2;
+		derivative = (error-previous_error)/0.02;
+		power = kP*error + kI*integral + kD*derivative;
+		if (power>1) power = 1;
+		if (power<-1) power = -1;
 		if (get_encoder_distance()<projectedDistance)
 			power = -AM_MAXPOWER;
 		else
@@ -266,8 +278,8 @@ public class Robot extends IterativeRobot {
 			{
 				power = 0 ;
 				stage = stage + 1;  // Finish with stage, go to the next stage...
-				encoder_reset();
-			}
+				// encoder_reset();
+			} 
 		}
 		DTMec.driveCartesian(power, 0, get_angle()/40); // Correction with rotation
 		// DTMec.driveCartesian(power, 0, 0, get_angle()); // Correction with angle
@@ -276,16 +288,30 @@ public class Robot extends IterativeRobot {
 
 	public void AM_forward_distance(double projectedDistance) // projectedDistance in inches
 	{
+		double error, distance;
 		double power = 0;
+		kP = 1;
+		kI = 1;
+		kD = 1;
+		distance = get_encoder_distance();
+		error = projectedDistance - distance;
+		integral += error*0.2;
+		derivative = (error-previous_error)/0.02;
+		power = kP*error + kI*integral + kD*derivative;
+		previous_error = error;
+		if (power>1) power = 1;
+		if (power<-1) power = -1;
 
 		if (get_encoder_distance()<projectedDistance)
+		{
 			power = -AM_MAXPOWER;
+		}
 		else 
-			{
-				power = 0 ;
-				stage = stage + 1;  // Finish with stage, go to the next stage...
-				encoder_reset();
-			}
+		{
+			power = 0 ;
+			stage = stage + 1;  // Finish with stage, go to the next stage...
+			//encoder_reset();
+		} 
 		DTMec.driveCartesian(power, 0, get_angle()/40);
 		updateDashboard();
 	}
@@ -300,8 +326,8 @@ public class Robot extends IterativeRobot {
 		{
 			power = 0 ;
 			stage = stage + 1;  // Finish with stage, go to the next stage...
-			encoder_reset();
-		}
+			// encoder_reset();
+		} 
 
 		// LEFT: direction = 1
 		// RIGHT: direction = -1
