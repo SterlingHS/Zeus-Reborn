@@ -9,7 +9,6 @@ package org.usfirst.frc.team6651.robot;
 
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 import com.kauailabs.navx.frc.AHRS;
-// import com.kauailabs.navx.frc.NavX;
 
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 import edu.wpi.first.wpilibj.Compressor;
@@ -126,9 +125,8 @@ public class Robot extends IterativeRobot {
 		{
 			DriverStation.reportError("Error instantiating navX MXP:  " + ex.getMessage(), true);
 		}
-		// GYRO Init
-		// gyro.calibrate();
-		gyro.reset();
+		// NavX init
+		NavX.reset();
 		field_orientation = 0;
 
 		// gyro.calibrate(); // Calibrate once in a while
@@ -195,14 +193,13 @@ public class Robot extends IterativeRobot {
 		// Reset Gyro
 		if (PS4.getRawButton(resetGyroId) == true) 
 		{
-			gyro.reset();
 			NavX.reset();
 			encoder_reset();
 			field_orientation = 0;
 		}
 
 		// Input from Gyro
-		angle = NavX.getYaw();
+		angle = get_angle();
 
 		// Test to check mode (Butterfly is DOWN, Tank Mode is UP)
 		if (butterflyState == DOWN) // Tank mode
@@ -222,6 +219,7 @@ public class Robot extends IterativeRobot {
 				LEDRed.set(Relay.Value.kOff);
 				LEDGreen.set(Relay.Value.kOn);
 				LEDBlue.set(Relay.Value.kOff);
+				field_orientation = angle;
 			}
 			else 						
 			{
@@ -249,7 +247,19 @@ public class Robot extends IterativeRobot {
 		DTMec.driveCartesian(forward, 0, turn);
 	}
 
-	public void drive_meccanum(double forward, double slide, double turn, double angle){	
+	public void drive_meccanum(double forward, double slide, double turn, double angle)
+	{
+		double error_angle = field_orientation-angle;
+
+		if (error_angle<0) error_angle = -error_angle;	
+		if (turn==0 && error_angle>1)
+		{
+			turn = (field_orientation-angle)/40;
+		}
+		else
+		{
+			field_orientation = angle;
+		}
 		DTMec.driveCartesian(forward, slide, turn, -angle);
 	}
 
@@ -277,7 +287,7 @@ public class Robot extends IterativeRobot {
 			{
 				power = 0 ;
 				stage = stage + 1;  // Finish with stage, go to the next stage...
-				encoder_reset();
+				// encoder_reset();
 			}
 		}
 		DTMec.driveCartesian(power, 0, get_angle()/40);
@@ -294,7 +304,7 @@ public class Robot extends IterativeRobot {
 			{
 				power = 0 ;
 				stage = stage + 1;  // Finish with stage, go to the next stage...
-				encoder_reset();
+				// encoder_reset();
 			}
 		DTMec.driveCartesian(power, 0, get_angle()/40);
 		updateDashboard();
@@ -310,7 +320,7 @@ public class Robot extends IterativeRobot {
 		{
 			power = 0 ;
 			stage = stage + 1;  // Finish with stage, go to the next stage...
-			encoder_reset();
+			// encoder_reset();
 		}
 
 		// LEFT: direction = 1
