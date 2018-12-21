@@ -251,7 +251,9 @@ public class Robot extends IterativeRobot {
 	{
 		double error_angle = field_orientation-angle;
 
-		if (error_angle<0) error_angle = -error_angle;	
+		if (error_angle<0) error_angle = -error_angle;	// Makes error positive
+
+		// if no turn and angle error then rectify the direction
 		if (turn==0 && error_angle>1)
 		{
 			turn = (field_orientation-angle)/40;
@@ -260,6 +262,7 @@ public class Robot extends IterativeRobot {
 		{
 			field_orientation = angle;
 		}
+
 		DTMec.driveCartesian(forward, slide, turn, -angle);
 	}
 
@@ -371,7 +374,7 @@ public class Robot extends IterativeRobot {
 	public double get_encoder_distance(){
 		double encoder;
 
-		encoder = (-enc1.get()+enc3.get())/2;
+		encoder = (enc1.get()+enc3.get())/2;
 		if (encoder<0) encoder = -encoder;
 		return encoder*180/1570;
 	}
