@@ -6,6 +6,7 @@ import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
+// import edu.wpi.first.wpilibj.PIDController;
 import edu.wpi.first.wpilibj.drive.MecanumDrive;
 import edu.wpi.first.wpilibj.Relay;
 import edu.wpi.first.wpilibj.I2C;
@@ -68,8 +69,19 @@ public class Robot extends IterativeRobot {
 	int stage;
 	int LEFT=1, RIGHT=-1;
 
+	// PID Controller
+	// PIDController ForwardController; // We need to figure out how it works!!
+	double kP = 0.03;
+    double kI = 0.00;
+    double kD = 0.00;
+	double kF = 0.00;
+	double kToleranceInches = 0.5f;
+
 	@Override
 	public void robotInit() {
+		// PID Controller Init
+		// ForwardController = new PIDController(kP, kI, kD, kF, NavX, );
+
 		// UltraSount Init in port 2
 		ai = new AnalogInput(2);
 
@@ -311,21 +323,14 @@ public class Robot extends IterativeRobot {
 		double ultrasound = get_ultrasound_distance();
 		SmartDashboard.putNumber("Distance Travelled: ", distance_travelled);
 		SmartDashboard.putNumber("Ultrasound: ", ultrasound);
-		SmartDashboard.putNumber("Angle: ", gyro.getAngle());
 		SmartDashboard.putNumber("enc1: ", enc1.get());
 		SmartDashboard.putNumber("enc2: ", enc2.get());
 		SmartDashboard.putNumber("enc3: ", enc3.get());
 		SmartDashboard.putNumber("enc4: ", enc4.get());
 		SmartDashboard.putNumber("Stage: ", stage);
-		SmartDashboard.putBoolean(  "IMU_Connected",        NavX.isConnected());
-        SmartDashboard.putBoolean(  "IMU_IsCalibrating",    NavX.isCalibrating());
         SmartDashboard.putNumber(   "IMU_Yaw",              NavX.getYaw());
-		SmartDashboard.putNumber(   "IMU_Pitch",            NavX.getPitch());
-		SmartDashboard.putNumber(   "IMU_Roll",             NavX.getRoll());
 		SmartDashboard.putNumber(   "IMU_CompassHeading",   NavX.getCompassHeading());
 		SmartDashboard.putNumber(   "IMU_FusedHeading",     NavX.getFusedHeading());
-		SmartDashboard.putNumber(   "IMU_TotalYaw",         NavX.getAngle());
-		SmartDashboard.putNumber(   "IMU_YawRateDPS",       NavX.getRate());
 		SmartDashboard.putNumber(   "IMU_Accel_X",          NavX.getWorldLinearAccelX());
         SmartDashboard.putNumber(   "IMU_Accel_Y",          NavX.getWorldLinearAccelY());
 		SmartDashboard.putBoolean(  "IMU_IsMoving",         NavX.isMoving());
