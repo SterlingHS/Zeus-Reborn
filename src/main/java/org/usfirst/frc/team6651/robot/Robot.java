@@ -370,7 +370,7 @@ public class Robot extends IterativeRobot {
 	public double get_encoder_distance(){
 		double encoder;
 
-		encoder = (-enc1.get()+enc3.get())/2;
+		encoder = (enc1.get()+enc2.get()+enc3.get()+enc4.get())/4;
 		if (encoder<0) encoder = -encoder;
 		return encoder*180/1570;
 	}
@@ -386,7 +386,7 @@ public class Robot extends IterativeRobot {
 	public double get_encoder_distance_sideways(){
 		double encoder;
 
-		encoder = (-enc1.get()+enc3.get())/2;
+		encoder = (enc1.get()+enc2.get()+enc3.get()+enc4.get())/4;
 		if (encoder<0) encoder = -encoder;
 		return encoder*110/1570;
 	}
