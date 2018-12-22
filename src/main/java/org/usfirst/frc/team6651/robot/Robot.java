@@ -254,9 +254,12 @@ public class Robot extends IterativeRobot {
 		if (error_angle<0) error_angle = -error_angle;	// Makes error positive
 
 		// if no turn and angle error then rectify the direction
-		if (turn==0 && error_angle>1)
+		if (turn==0)
 		{
-			turn = (field_orientation-angle)/40;
+			if( error_angle>1)
+			{
+				turn = -(field_orientation-angle)/50;
+			}
 		}
 		else
 		{
@@ -346,7 +349,7 @@ public class Robot extends IterativeRobot {
 		double ultrasound = get_ultrasound_distance();
 		SmartDashboard.putNumber("Distance Travelled: ", distance_travelled);
 		SmartDashboard.putNumber("Ultrasound: ", ultrasound);
-		SmartDashboard.putNumber("Angle: ", gyro.getAngle());
+		SmartDashboard.putNumber("Angle: ", get_angle());
 		SmartDashboard.putNumber("enc1: ", enc1.get());
 		SmartDashboard.putNumber("enc2: ", enc2.get());
 		SmartDashboard.putNumber("enc3: ", enc3.get());
@@ -368,13 +371,14 @@ public class Robot extends IterativeRobot {
 		SmartDashboard.putNumber(   "Velocity_X",           NavX.getVelocityX());
         SmartDashboard.putNumber(   "Velocity_Y",           NavX.getVelocityY());
         SmartDashboard.putNumber(   "Displacement_X",       NavX.getDisplacementX());
-        SmartDashboard.putNumber(   "Displacement_Y",       NavX.getDisplacementY());
+		SmartDashboard.putNumber(   "Displacement_Y",       NavX.getDisplacementY());
+		SmartDashboard.putNumber(   "Field Orientation",    field_orientation);
 	}
 
 	public double get_encoder_distance(){
 		double encoder;
 
-		encoder = (enc1.get()+enc3.get())/2;
+		encoder = (enc1.get()+enc2.get()+enc3.get()+enc4.get())/4;
 		if (encoder<0) encoder = -encoder;
 		return encoder*180/1570;
 	}
@@ -390,7 +394,7 @@ public class Robot extends IterativeRobot {
 	public double get_encoder_distance_sideways(){
 		double encoder;
 
-		encoder = (-enc1.get()+enc3.get())/2;
+		encoder = (enc1.get()+enc2.get()+enc3.get()+enc4.get())/4;
 		if (encoder<0) encoder = -encoder;
 		return encoder*110/1570;
 	}
