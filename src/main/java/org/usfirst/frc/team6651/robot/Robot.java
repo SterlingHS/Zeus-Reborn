@@ -56,14 +56,20 @@ public class Robot extends IterativeRobot {
 	// Gyro Init
 	ADXRS450_Gyro gyro = new ADXRS450_Gyro();
 	double angle, field_orientation;
-	int resetGyroId = 2;
 
 	// NavX Init
 	AHRS NavX;
 	
 	// Joystick Init
 	Joystick PS4 = new Joystick(0);
-	int butterflyButtonId = 1;
+	int butterflyButtonId = 8; // Right trigger
+	int DirectionWest = 0;
+	int DirectionSouth = 1;
+	int DirectionEast = 2;
+	int DirectionNorth = 3;
+	int rotateRocketLeft = 4;
+	int rotateRocketRight = 5;
+	int resetGyroId = 13;
 	
 	// MaxPower - Use less than 1 to slow down the robot
 	double MAXPOWER=1;
@@ -190,6 +196,12 @@ public class Robot extends IterativeRobot {
 		double slide = PS4.getRawAxis(Y_axis)*MAXPOWER; 
 		double turn = -PS4.getRawAxis(Z_axis)*MAXPOWER;
 		
+		// Input from Gyro
+		angle = get_angle();
+		
+		// Check forced field orientation <- Did you see what I did there?
+		forcedfield(angle);
+
 		// Reset Gyro
 		if (PS4.getRawButton(resetGyroId) == true) 
 		{
@@ -197,9 +209,6 @@ public class Robot extends IterativeRobot {
 			encoder_reset();
 			field_orientation = 0;
 		}
-
-		// Input from Gyro
-		angle = get_angle();
 
 		// Test to check mode (Butterfly is DOWN, Tank Mode is UP)
 		if (butterflyState == DOWN) // Tank mode
@@ -241,7 +250,52 @@ public class Robot extends IterativeRobot {
 		updateDashboard();
 	}
 
+	public void forcedfield(double angle)
+	{
+		// Cases for POV
+		int POV = PS4.getPOV();
+		switch(POV)
+		{
+			case 0:
+				field_orientation = (int)(angle/360)*360;
+				break;
+			case 90:
+				field_orientation = (int)(angle/360)*360 + 90;
+				break;
+			case 180:
+				field_orientation = (int)(angle/360)*360 + 180;
+				break;
+			case 270:
+				field_orientation = (int)(angle/360)*360 - 90;
+				break;
+			case -1:
+				break;
+		}
 
+		if(PS4.getRawButton(DirectionNorth) == true) field_orientation = (int)(angle/360)*360;
+		if(PS4.getRawButton(DirectionWest) == true) field_orientation = (int)(angle/360)*360 + 90;
+		if(PS4.getRawButton(DirectionSouth) == true) field_orientation = (int)(angle/360)*360 + 180;
+		if(PS4.getRawButton(DirectionEast) == true) field_orientation = (int)(angle/360)*360 - 90;
+
+		if(PS4.getRawButton(rotateRocketRight) == true)
+		{
+			switch ((int)((int)(angle/90.))%4)
+			{
+				case 0: 
+					field_orientation = (int)(angle/360)*360 - 61.5;
+					break;
+				case 1: 
+					field_orientation = (int)(angle/360)*360 + 61.5;
+					break;
+				case 2: 
+					field_orientation = (int)(angle/360)*360 + 61.5 + 90;
+					break;
+				case 3:
+					field_orientation = (int)(angle/360)*360 - 61.5 - 90;
+					break;
+			}
+		}
+	}
 
 	public void drive_tank(double forward, double turn){
 		DTMec.driveCartesian(forward, 0, turn);
@@ -256,9 +310,11 @@ public class Robot extends IterativeRobot {
 		// if no turn and angle error then rectify the direction
 		if (turn==0)
 		{
-			if( error_angle>1)
+			if( error_angle>3)
 			{
 				turn = -(field_orientation-angle)/50;
+				if(turn>0.5) turn = 0.5;
+				if(turn<-0.5) turn = -0.5;
 			}
 		}
 		else
