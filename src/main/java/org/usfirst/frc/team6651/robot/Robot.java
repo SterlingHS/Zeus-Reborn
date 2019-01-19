@@ -63,13 +63,14 @@ public class Robot extends IterativeRobot {
 	// Joystick Init
 	Joystick PS4 = new Joystick(0);
 	int butterflyButtonId = 8; // Right trigger
-	int DirectionWest = 0;
-	int DirectionSouth = 1;
-	int DirectionEast = 2;
-	int DirectionNorth = 3;
-	int rotateRocketLeft = 4;
-	int rotateRocketRight = 5;
-	int resetGyroId = 13;
+	int DirectionWest = 1;
+	int DirectionSouth = 2;
+	int DirectionEast = 3;
+	int DirectionNorth = 4;
+	int rotateRocketLeft = 5;
+	int rotateRocketRight = 6;
+	int RocketIdDirection = 0; // 0 = NE, 1 = SE, 2 = SW, 3 = NW 
+	int resetGyroId = 14;
 	
 	// MaxPower - Use less than 1 to slow down the robot
 	double MAXPOWER=1;
@@ -252,53 +253,37 @@ public class Robot extends IterativeRobot {
 
 	public void forcedfield(double angle)
 	{
-		// Cases for POV
-		int POV = PS4.getPOV();
-		switch(POV)
-		{
-			case 0:
-				field_orientation = (int)(angle/360)*360;
-				break;
-			case 90:
-				field_orientation = (int)(angle/360)*360 + 90;
-				break;
-			case 180:
-				field_orientation = (int)(angle/360)*360 + 180;
-				break;
-			case 270:
-				field_orientation = (int)(angle/360)*360 - 90;
-				break;
-			case -1:
-				break;
-		}
-
 		if(PS4.getRawButton(DirectionNorth) == true) field_orientation = (int)(angle/360)*360;
 		if(PS4.getRawButton(DirectionWest) == true) field_orientation = (int)(angle/360)*360 + 90;
 		if(PS4.getRawButton(DirectionSouth) == true) field_orientation = (int)(angle/360)*360 + 180;
 		if(PS4.getRawButton(DirectionEast) == true) field_orientation = (int)(angle/360)*360 - 90;
 
-		if(PS4.getRawButton(rotateRocketRight) == true)
+		if(PS4.getRawButton(rotateRocketRight) == true || PS4.getRawButton(rotateRocketLeft) == true)
 		{
-			switch ((int)((int)(angle/90.))%4)
+			if (PS4.getRawButton(rotateRocketRight) == true) RocketIdDirection += 1;
+			if (PS4.getRawButton(rotateRocketLeft) == true) RocketIdDirection -= 1;
+			if(RocketIdDirection==4) RocketIdDirection=0;
+			if(RocketIdDirection==-1) RocketIdDirection=4;
+			switch (RocketIdDirection) // 0 = NE, 1 = SE, 2 = SW, 3 = NW 
 			{
 				case 0: 
-					field_orientation = (int)(angle/360)*360 - 61.5;
+					field_orientation = (int)(angle/360)*360 - 61.5; // aiming NE
 					break;
 				case 1: 
-					field_orientation = (int)(angle/360)*360 + 61.5;
+					field_orientation = (int)(angle/360)*360 - 61.5 - 90; // SE Face
 					break;
 				case 2: 
-					field_orientation = (int)(angle/360)*360 + 61.5 + 90;
+					field_orientation = (int)(angle/360)*360 - 61.5 - 180; // SW
 					break;
 				case 3:
-					field_orientation = (int)(angle/360)*360 - 61.5 - 90;
+					field_orientation = (int)(angle/360)*360 - 61.5 - 270;
 					break;
 			}
 		}
 	}
 
 	public void drive_tank(double forward, double turn){
-		DTMec.driveCartesian(forward, 0, turn);
+		DTMec.driveCartesian(forward, 0, -turn);
 	}
 
 	public void drive_meccanum(double forward, double slide, double turn, double angle)
@@ -403,32 +388,33 @@ public class Robot extends IterativeRobot {
 	public void updateDashboard(){
 		double distance_travelled = get_encoder_distance();
 		double ultrasound = get_ultrasound_distance();
-		SmartDashboard.putNumber("Distance Travelled: ", distance_travelled);
-		SmartDashboard.putNumber("Ultrasound: ", ultrasound);
+		//SmartDashboard.putNumber("Distance Travelled: ", distance_travelled);
+		//SmartDashboard.putNumber("Ultrasound: ", ultrasound);
 		SmartDashboard.putNumber("Angle: ", get_angle());
-		SmartDashboard.putNumber("enc1: ", enc1.get());
-		SmartDashboard.putNumber("enc2: ", enc2.get());
-		SmartDashboard.putNumber("enc3: ", enc3.get());
-		SmartDashboard.putNumber("enc4: ", enc4.get());
-		SmartDashboard.putNumber("Stage: ", stage);
-		SmartDashboard.putBoolean(  "IMU_Connected",        NavX.isConnected());
-        SmartDashboard.putBoolean(  "IMU_IsCalibrating",    NavX.isCalibrating());
+		//SmartDashboard.putNumber("enc1: ", enc1.get());
+		//SmartDashboard.putNumber("enc2: ", enc2.get());
+		//SmartDashboard.putNumber("enc3: ", enc3.get());
+		//SmartDashboard.putNumber("enc4: ", enc4.get());
+		//SmartDashboard.putNumber("Stage: ", stage);
+		//SmartDashboard.putBoolean(  "IMU_Connected",        NavX.isConnected());
+        //SmartDashboard.putBoolean(  "IMU_IsCalibrating",    NavX.isCalibrating());
         SmartDashboard.putNumber(   "IMU_Yaw",              NavX.getYaw());
 		SmartDashboard.putNumber(   "IMU_Pitch",            NavX.getPitch());
 		SmartDashboard.putNumber(   "IMU_Roll",             NavX.getRoll());
 		SmartDashboard.putNumber(   "IMU_CompassHeading",   NavX.getCompassHeading());
-		SmartDashboard.putNumber(   "IMU_FusedHeading",     NavX.getFusedHeading());
+		//SmartDashboard.putNumber(   "IMU_FusedHeading",     NavX.getFusedHeading());
 		SmartDashboard.putNumber(   "IMU_TotalYaw",         NavX.getAngle());
-		SmartDashboard.putNumber(   "IMU_YawRateDPS",       NavX.getRate());
+		//SmartDashboard.putNumber(   "IMU_YawRateDPS",       NavX.getRate());
 		SmartDashboard.putNumber(   "IMU_Accel_X",          NavX.getWorldLinearAccelX());
         SmartDashboard.putNumber(   "IMU_Accel_Y",          NavX.getWorldLinearAccelY());
-		SmartDashboard.putBoolean(  "IMU_IsMoving",         NavX.isMoving());
-		SmartDashboard.putBoolean(  "IMU_IsRotating",       NavX.isRotating());
+		//SmartDashboard.putBoolean(  "IMU_IsMoving",         NavX.isMoving());
+		//SmartDashboard.putBoolean(  "IMU_IsRotating",       NavX.isRotating());
 		SmartDashboard.putNumber(   "Velocity_X",           NavX.getVelocityX());
         SmartDashboard.putNumber(   "Velocity_Y",           NavX.getVelocityY());
         SmartDashboard.putNumber(   "Displacement_X",       NavX.getDisplacementX());
 		SmartDashboard.putNumber(   "Displacement_Y",       NavX.getDisplacementY());
 		SmartDashboard.putNumber(   "Field Orientation",    field_orientation);
+		SmartDashboard.putNumber(   "RocketIdDirection",    RocketIdDirection);
 	}
 
 	public double get_encoder_distance(){
@@ -463,7 +449,7 @@ public class Robot extends IterativeRobot {
 	}
 
 	public double get_angle(){
-		return NavX.getYaw();
+		return NavX.getAngle();
 	}
 
 }
